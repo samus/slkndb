@@ -69,11 +69,11 @@ class Database(internal val conn: DbConnection) {
     /**
      * Executes a sql statement
      */
-    fun execute(sql: String, function: ((Statement) -> Unit)? = null): Boolean {
+    fun execute(sql: String, function: (Statement.() -> Unit)? = null): Boolean {
         val stmt = Statement.prepare(sql, conn)
         try {
             function?.let { it(stmt) }
-            return stmt.step()
+            return stmt.execute()
         } finally {
             stmt.close()
         }
