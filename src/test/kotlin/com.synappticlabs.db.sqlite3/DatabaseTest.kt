@@ -32,44 +32,88 @@ class DatabaseExecutionTests {
 
     @Test
     fun `Can execute a dml statement`() {
-        assertTrue(db.execute(createTable))
+        val result = db.execute(createTable)
+        assertSuccessResult(result, 0, false)
     }
 
     @Test
     fun `Inserts a row into a table`() {
         db.execute(createTable)
         var insertFoo = "insert into foo(bar, baz) values (\"a\",\"b\");"
-        assertTrue(db.execute(insertFoo))
+        val result = db.execute(insertFoo)
+        assertSuccessResult(result, 1, true)
+
     }
 
     @Test
     fun `Inserts a row into a table using positional arguments`() {
         db.execute(createTable)
-        val success = db.execute(insertFooPosArgs) {
+        val result = db.execute(insertFooPosArgs) {
             assertEquals(3, parameters.count)
             parameters.bind(1, "a")
             parameters.bind(2, "b")
             parameters.bind(3, null)
         }
-        assertTrue(success)
+        assertTrue(result.success)
     }
 
     @Test
     fun `Inserts a row into a table using an array as positional arguments`() {
         db.execute(createTable)
         val args = listOf("a", "b", 1)
-        assertTrue(db.execute(insertFooPosArgs){
+        val result = db.execute(insertFooPosArgs){
             parameters.bind(args)
-        })
+        }
+        assertSuccessResult(result, 1, true)
     }
 
     @Test
     fun `Inserts a row into a table using a map as named arguments`() {
         db.execute(createTable)
         val args = hashMapOf("bar" to "a", "baz" to "b", "num1" to 5)
-        assertTrue(db.execute("insert into foo(bar, baz, num) values (:bar,:baz,:num1);") {
+        val result = db.execute("insert into foo(bar, baz, num) values (:bar,:baz,:num1);") {
             parameters.bind(args)
-        })
+        }
+        assertSuccessResult(result, 1, true)
+    }
+
+    @Test
+    fun `Deletes rows from a table`() {
+        setupData()
+        val result = db.execute("delete from foo where num > 2")
+        assertSuccessResult(result, 2, false)
+    }
+
+    @Test
+    fun `Deletes no rows from a table when the criteria does not match`() {
+        setupData()
+        val result = db.execute("delete from foo where num > 1000")
+        assertSuccessResult(result, 0, false)
+    }
+
+    fun assertSuccessResult(result: SQLiteResult, modificationCount: Int, checkLastRowId: Boolean) {
+        when (result) {
+            is SQLiteResult.ModificationResult -> {
+                assertEquals(modificationCount, result.modificationCount)
+                if (checkLastRowId) { assertNotEquals(0, result.lastRowInsertId) }
+            }
+            is SQLiteResult.FailureResult -> fail("Sqlite operation failed with $result.message")
+        }
+    }
+
+    fun setupData(){
+        db.execute(createTable)
+        val data = listOf(
+            hashMapOf("bar" to "a", "baz" to "b", "num1" to 1),
+            hashMapOf("bar" to "b", "baz" to "c", "num1" to 2),
+            hashMapOf("bar" to "c", "baz" to "d", "num1" to 3),
+            hashMapOf("bar" to "d", "baz" to "e", "num1" to 4)
+            )
+        data.forEach { args ->
+            db.execute("insert into foo(bar, baz, num) values (:bar,:baz,:num1);") {
+                parameters.bind(args)
+            }
+        }
     }
 
     @BeforeEach fun setup() {

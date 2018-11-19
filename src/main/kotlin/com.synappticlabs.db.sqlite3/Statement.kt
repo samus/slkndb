@@ -22,12 +22,22 @@ class Statement(internal val stmt: StatementPointer, private val conn: DbConnect
     }
 
     /**
+     * Reset sets a statment back to its initial state of execution.  It does not clear any bound parameters.
+     * @throws SQLiteError if the statement could not be reset.
+     */
+    fun reset() = sqliteTryOrThrow(conn, "Unable to reset statement") { sqlite3_reset(stmt) }
+
+    /**
+     * Clears the values from the bound parameters.
+     * @throws SQLiteError if the clear function fails.
+     */
+    fun clear() = sqliteTryOrThrow(conn, "Unable to clear bindings") { sqlite3_clear_bindings(stmt) }
+
+    /**
      * All statements must be closed or else they will leak resources.
      * @throws SQLiteError if the statement was unable to be closed.
      */
-    fun close() {
-        sqliteTryOrThrow(conn, "Unable to close statement"){ sqlite3_finalize(stmt) }
-    }
+    fun close() = sqliteTryOrThrow(conn, "Unable to close statement"){ sqlite3_finalize(stmt) }
 
     companion object {
         internal fun prepare(sql: String, conn: DbConnection): Statement = memScoped {

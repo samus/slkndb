@@ -67,18 +67,39 @@ class Database(internal val conn: DbConnection) {
     }
 
     /**
-     * Executes a sql statement
+     * Executes a sql statement in which no return value from the database is necessary except success/failure.
+     * The sql will be compiled into a prepared statement according to
+     * [`sqlite3_prepare_v2`](http://sqlite.org/c3ref/prepare.html)
+     * and [`sqlite3_bind`](http://sqlite.org/c3ref/bind_blob.html).  The statement can contain use the unnamed
+     * parameter binding `?` or use a named parameter in the format of `:alpha_numeric`.
+     * Note: If modifications are being done on multiple threads result values could refer to the result from another thread.
+     * see https://www.sqlite.org/capi3ref.html#sqlite3_last_insert_rowid
+     * @param sql The sql to be executed including optional placeholders.
+     * @param function a callback allowing for flexible configuration of the statement.  The function's `this` context
+     * is the statement.  Any parameters that need to be bound can call on the `parameters` object.
+     * @throws SQLiteError if an error is encountered while executing the statement.
      */
-    fun execute(sql: String, function: (Statement.() -> Unit)? = null): Boolean {
+    fun execute(sql: String, function: (Statement.() -> Unit)? = null): SQLiteResult {
         val stmt = Statement.prepare(sql, conn)
         try {
             function?.let { it(stmt) }
-            return stmt.execute()
+            return if (stmt.execute()) {
+                SQLiteResult.success(this)
+            } else SQLiteResult.failure(this)
         } finally {
             stmt.close()
         }
-
     }
+
+    internal fun lastInsertRowId(): Long = sqlite3_last_insert_rowid(conn)
+
+    internal fun resetLastRowId(id: Long = 0) = sqlite3_set_last_insert_rowid(conn, id)
+
+    internal fun changeCount(): Int = sqlite3_changes(conn)
+
+    internal fun lastErrorMessage(): String? = sqlite3_errmsg(conn)?.toKString()
+
+    internal fun lastErrorCode(): Int = sqlite3_errcode(conn)
 
     companion object {
         val sqliteVersion: String
@@ -113,6 +134,26 @@ class Database(internal val conn: DbConnection) {
                 }
                 Database(dbPtr.value!!)
             }
+        }
+    }
+}
+
+sealed class SQLiteResult(val success: Boolean) {
+    data class ModificationResult(val lastRowInsertId: Long, val modificationCount: Int): SQLiteResult(true)
+    data class FailureResult(val code: Int, val message: String): SQLiteResult(false)
+
+    companion object {
+        internal fun success(db: Database, resetLastRow: Boolean = true): ModificationResult {
+            val rowId = db.lastInsertRowId()
+            val count = db.changeCount()
+            if (resetLastRow) { db.resetLastRowId() }
+
+            return ModificationResult(rowId, count)
+        }
+        internal fun failure(db: Database): FailureResult {
+            val code = db.lastErrorCode()
+            val message = db.lastErrorMessage() ?: "Unknown"
+            return FailureResult(code, message)
         }
     }
 }
