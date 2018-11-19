@@ -14,6 +14,54 @@ class Database(internal val conn: DbConnection) {
         private set
 
     /**
+     * Attempts to verify the connection to the database is working properly.
+     */
+    fun goodConnection(): Boolean {
+        if (opened == false) { return false }
+
+        TODO("Execute a query to determine if the connection is good.")
+
+        return true
+    }
+
+    /**
+     * Executes a sql statement in which no return value from the database is necessary except success/failure.
+     * The sql will be compiled into a prepared statement according to
+     * [`sqlite3_prepare_v2`](http://sqlite.org/c3ref/prepare.html)
+     * and [`sqlite3_bind`](http://sqlite.org/c3ref/bind_blob.html).  The statement can contain use the unnamed
+     * parameter binding `?` or use a named parameter in the format of `:alpha_numeric`.
+     * Note: If modifications are being done on multiple threads result values could refer to the result from another thread.
+     * see https://www.sqlite.org/capi3ref.html#sqlite3_last_insert_rowid
+     * @param sql The sql to be executed including optional placeholders.
+     * @param function a callback allowing for flexible configuration of the statement.  The function's `this` context
+     * is the statement.  Any parameters that need to be bound can call on the `parameters` object.
+     * @throws SQLiteError if an error is encountered while executing the statement.
+     */
+    fun execute(sql: String, function: (Statement.() -> Unit)? = null): SQLiteResult {
+        val stmt = Statement.prepare(sql, conn)
+        try {
+            function?.let { it(stmt) }
+            return if (stmt.execute()) {
+                SQLiteResult.success(this)
+            } else SQLiteResult.failure(this)
+        } finally {
+            stmt.close()
+        }
+    }
+
+    fun query(sql: String, function: (Statement.() -> Unit)? = null): SQLiteResult {
+        val stmt = Statement.prepare(sql, conn)
+        function?.let { it(stmt) }
+        when {
+            stmt.execute() -> return SQLiteResult.QueryResult(ResultSet(stmt))
+            else -> {
+                stmt.close()
+                return SQLiteResult.failure(this)
+            }
+        }
+    }
+
+    /**
      * Close the connection to a database file.  If there are leaked or open statements
      * an attempt will be made to cleanly finalize them.
      * @return True if the database connection was cleanly closed.
@@ -53,42 +101,6 @@ class Database(internal val conn: DbConnection) {
 
         this.opened = false
         return true
-    }
-
-    /**
-     * Attempts to verify the connection to the database is working properly.
-     */
-    fun goodConnection(): Boolean {
-        if (opened == false) { return false }
-
-        TODO("Execute a query to determine if the connection is good.")
-
-        return true
-    }
-
-    /**
-     * Executes a sql statement in which no return value from the database is necessary except success/failure.
-     * The sql will be compiled into a prepared statement according to
-     * [`sqlite3_prepare_v2`](http://sqlite.org/c3ref/prepare.html)
-     * and [`sqlite3_bind`](http://sqlite.org/c3ref/bind_blob.html).  The statement can contain use the unnamed
-     * parameter binding `?` or use a named parameter in the format of `:alpha_numeric`.
-     * Note: If modifications are being done on multiple threads result values could refer to the result from another thread.
-     * see https://www.sqlite.org/capi3ref.html#sqlite3_last_insert_rowid
-     * @param sql The sql to be executed including optional placeholders.
-     * @param function a callback allowing for flexible configuration of the statement.  The function's `this` context
-     * is the statement.  Any parameters that need to be bound can call on the `parameters` object.
-     * @throws SQLiteError if an error is encountered while executing the statement.
-     */
-    fun execute(sql: String, function: (Statement.() -> Unit)? = null): SQLiteResult {
-        val stmt = Statement.prepare(sql, conn)
-        try {
-            function?.let { it(stmt) }
-            return if (stmt.execute()) {
-                SQLiteResult.success(this)
-            } else SQLiteResult.failure(this)
-        } finally {
-            stmt.close()
-        }
     }
 
     internal fun lastInsertRowId(): Long = sqlite3_last_insert_rowid(conn)
@@ -140,6 +152,7 @@ class Database(internal val conn: DbConnection) {
 
 sealed class SQLiteResult(val success: Boolean) {
     data class ModificationResult(val lastRowInsertId: Long, val modificationCount: Int): SQLiteResult(true)
+    data class QueryResult(val resultSet: ResultSet): SQLiteResult(true)
     data class FailureResult(val code: Int, val message: String): SQLiteResult(false)
 
     companion object {
