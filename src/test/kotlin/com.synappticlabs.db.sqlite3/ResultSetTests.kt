@@ -68,6 +68,12 @@ class ResultSetTests {
     }
 
     @Test
+    fun `Handles empty result sets gracefully`() {
+        val resultSet = getResultSet("select bar, baz from foo where num = 1000")
+        assertFalse(resultSet.next())
+    }
+
+    @Test
     fun `Writes and reads a blob`() {
         db.execute("""
             create table bucket(

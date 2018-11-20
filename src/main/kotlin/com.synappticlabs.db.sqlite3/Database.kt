@@ -70,6 +70,23 @@ class Database(internal val conn: DbConnection) {
         return ResultSet(stmt)
     }
 
+    fun transaction(type: TransactionType = TransactionType.Deferred(),
+                    function: (Transaction.() -> TransactionResult)): SQLiteResult {
+        val (begin, transaction) = Transaction.begin(type, this)
+
+        when (begin) {
+            is SQLiteResult.FailureResult -> return begin
+        }
+        if (transaction == null) {
+            return SQLiteResult.FailureResult(-1, "Unknown problem starting transaction")
+        }
+        try {
+            return Transaction.end(function(transaction), this)
+        } catch (ex: Exception) {
+            return Transaction.end(TransactionResult.Rollback(), this)
+        }
+    }
+
     /**
      * Close the connection to a database file.  If there are leaked or open statements
      * an attempt will be made to cleanly finalize them.
