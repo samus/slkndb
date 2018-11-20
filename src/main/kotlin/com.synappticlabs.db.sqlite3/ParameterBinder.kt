@@ -7,8 +7,10 @@ class ParameterBinder(internal val stmt: StatementPointer) {
     val count: Int get() = sqlite3_bind_parameter_count(stmt)
 
     /**
-     * Binds a collection of values to the parameters
+     * Binds a collection of values to the parameters.
+     * @throws SQLiteError if there is a problem binding the parameter.
      */
+    @Throws()
     fun bind(values: Iterable<Any?>) {
         values.withIndex().forEach() { entry ->
             this.bind(entry.index + 1, entry.value)
@@ -16,8 +18,12 @@ class ParameterBinder(internal val stmt: StatementPointer) {
     }
 
     /**
-     * Binds a map of values to a sql statement.
+     * Binds a map of values to a sql statement.  The keys need to match the named parameters in the statment without
+     * a semi-colon at the start of the key name.
+     * @throws IllegalArgumentException if the named parameter is not found
+     * @throws SQLiteError if there is a problem binding the parameter.
      */
+    @Throws()
     fun bind(values: Map<String, Any?>) {
         values.forEach { (key, value) ->
             this.bind(name = key, value = value)
@@ -29,12 +35,14 @@ class ParameterBinder(internal val stmt: StatementPointer) {
      * One will be inserted automatically.
      * @param name the name of the parameter as specified in a sql statement with a colon such as :col1.
      * @param value T the value of the parameter must be of type supported by `fun <T>bind(index: Int, value: T)`
-     * @throws SQLiteError if the named parameter is not found
+     * @throws IllegalArgumentException if the named parameter is not found
+     * @throws SQLiteError if there is a problem binding the parameter.
      */
+    @Throws()
     fun <T>bind(name: String, value: T) {
         val index = parameterIndex(":$name")
         when (index) {
-            0 -> throw SQLiteError("Parameter name $name not found")
+            0 -> throw IllegalArgumentException("Parameter name $name not found")
             else -> bind(index, value)
         }
     }
@@ -46,6 +54,7 @@ class ParameterBinder(internal val stmt: StatementPointer) {
      * @param value the value to bind.  See description for the supported types.
      * @throws SQLiteError if there is a problem binding the parameter.
      */
+    @Throws()
     fun <T>bind(index: Int, value: T) {
         val rc = when (value) {
             is String -> sqlite3_bind_text(stmt, index, value, value.toUtf8().count(), (-1).toLong().toCPointer())

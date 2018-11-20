@@ -22,9 +22,10 @@ apply plugin: 'org.jetbrains.kotlin.platform.native'
 
 sourceSets {
     components.main {
-        baseName = "synappticlabs-sqlite"
+        baseName = "SLKNDB"
         targets = ['ios_arm64', 'ios_x64', 'macos_x64']
-        outputKinds = [KLIBRARY]
+        outputKinds = [KLIBRARY, FRAMEWORK]
+//        outputKinds = [KLIBRARY]
         dependencies {
             cinterop('sqlite3') {
             }

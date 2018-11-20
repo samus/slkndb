@@ -98,7 +98,6 @@ class DatabaseExecutionTests {
                 if (checkLastRowId) { assertNotEquals(0, result.lastRowInsertId) }
             }
             is SQLiteResult.FailureResult -> fail("Sqlite operation failed with $result.message")
-            else -> fail("Incorrect SQLiteResult type returned.")
         }
     }
 
