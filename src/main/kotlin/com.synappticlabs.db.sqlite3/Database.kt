@@ -76,14 +76,16 @@ class Database(internal val conn: DbConnection) {
 
         when (begin) {
             is SQLiteResult.FailureResult -> return begin
-        }
-        if (transaction == null) {
-            return SQLiteResult.FailureResult(-1, "Unknown problem starting transaction")
-        }
-        try {
-            return Transaction.end(function(transaction), this)
-        } catch (ex: Exception) {
-            return Transaction.end(TransactionResult.Rollback(), this)
+            else -> {
+                if (transaction == null) {
+                    return SQLiteResult.FailureResult(-1, "Unknown problem starting transaction")
+                }
+                try {
+                    return Transaction.end(function(transaction), this)
+                } catch (ex: Exception) {
+                    return Transaction.end(TransactionResult.Rollback(), this)
+                }
+            }
         }
     }
 

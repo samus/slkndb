@@ -13,6 +13,19 @@ class Transaction(private val db: Database) {
         return db.query(sql, function)
     }
 
+    fun nest(name: String, function: (Transaction.() -> TransactionResult)): SQLiteResult {
+        val result = db.execute("savepoint ${name}")
+        when (result) {
+            is SQLiteResult.FailureResult -> return result
+            else -> {
+                when(function(this)) {
+                    is TransactionResult.Commit -> return db.execute("release savepoint $name")
+                    else -> return db.execute("rollback transaction to savepoint $name")
+                }
+            }
+        }
+    }
+
     companion object {
         internal fun begin(type: TransactionType, db: Database): Pair<SQLiteResult, Transaction?> {
             val result = db.execute("begin ${type.value} transaction")

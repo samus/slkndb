@@ -61,6 +61,111 @@ class TransactionTests {
         resultSet.close()
     }
 
+    @Test
+    fun `Can nest transactions`() {
+        db.transaction() {
+            try {
+                val resultSet = query("select * from foo where num is null")
+                resultSet.next()
+                val id = resultSet.int("id")
+                val num = 5
+                resultSet.close()
+                execute("update foo set num = :num where id = :id;") {
+                    parameters.bind(hashMapOf("num" to num, "id" to id))
+                }
+                nest("a") {
+                    execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
+                        parameters.bind(hashMapOf("bar" to "bare", "baz" to "bazf", "num" to 6))
+                    }
+                    execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
+                        parameters.bind(hashMapOf("bar" to "barf", "baz" to "bazg", "num" to 7))
+                    }
+                    return@nest TransactionResult.Commit()
+                }
+            } catch (ex: Exception) {
+                fail("Test failed with exception: $ex")
+            }
+            return@transaction TransactionResult.Commit()
+        }
+        val resultSet = db.query("select * from foo where num >= 5")
+        var rowCount = 0
+        while (resultSet.next()) {
+            rowCount += 1
+        }
+        assertEquals(3, rowCount, "Inner transaction did nothing")
+    }
+
+    @Test
+    fun `Can rollback save points`(){
+        db.transaction() {
+            try {
+                val resultSet = query("select * from foo where num is null")
+                resultSet.next()
+                val id = resultSet.int("id")
+                val num = 5
+                resultSet.close()
+                execute("update foo set num = :num where id = :id;") {
+                    parameters.bind(hashMapOf("num" to num, "id" to id))
+                }
+                nest("a") {
+                    execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
+                        parameters.bind(hashMapOf("bar" to "bare", "baz" to "bazf", "num" to 6))
+                    }
+                    execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
+                        parameters.bind(hashMapOf("bar" to "barf", "baz" to "bazg", "num" to 7))
+                    }
+                    return@nest TransactionResult.Rollback()
+                }
+            } catch (ex: Exception) {
+                fail("Test failed with exception: $ex")
+            }
+            return@transaction TransactionResult.Commit()
+        }
+        val resultSet = db.query("select * from foo where num >= 5")
+        var rowCount = 0
+        while (resultSet.next()) {
+            rowCount += 1
+        }
+        assertEquals(1, rowCount, "Nested transaction did not rollback.")
+    }
+
+    @Test
+    fun `Can nest transactions inside nested transactions`(){
+        db.transaction() {
+            try {
+                val resultSet = query("select * from foo where num is null")
+                resultSet.next()
+                val id = resultSet.int("id")
+                val num = 5
+                resultSet.close()
+                execute("update foo set num = :num where id = :id;") {
+                    parameters.bind(hashMapOf("num" to num, "id" to id))
+                }
+                nest("a") {
+                    execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
+                        parameters.bind(hashMapOf("bar" to "bare", "baz" to "bazf", "num" to 6))
+                    }
+                    nest("b") {
+                        execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
+                            parameters.bind(hashMapOf("bar" to "barf", "baz" to "bazg", "num" to 7))
+                        }
+                        return@nest TransactionResult.Rollback()
+                    }
+                    return@nest TransactionResult.Commit()
+                }
+            } catch (ex: Exception) {
+                fail("Test failed with exception: $ex")
+            }
+            return@transaction TransactionResult.Commit()
+        }
+        val resultSet = db.query("select * from foo where num >= 5")
+        var rowCount = 0
+        while (resultSet.next()) {
+            rowCount += 1
+        }
+        assertEquals(2, rowCount, "Nested, nested transaction did not roll back.")
+    }
+
     @BeforeEach fun setup() {
         db = Database.open()
 
