@@ -2,24 +2,27 @@
 
 buildscript {
     repositories {
+        jcenter()
+        mavenLocal()
         mavenCentral()
-        maven {
-            url "https://dl.bintray.com/jetbrains/kotlin-native-dependencies"
-        }
+        maven { url "https://dl.bintray.com/jetbrains/kotlin-native-dependencies" }
     }
 
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:1.3.10"
+        // use patched version which supports Gradle metadata, but is not compatible with Maven publications
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.2-SNAPSHOT'
     }
 }
 
-plugins {
-    id "org.jetbrains.kotlin.platform.native" version "1.3.10"
-}
+//plugins {
+//    id "org.jetbrains.kotlin.platform.native" version "1.3.10"
+//}
 
 
 apply plugin: 'org.jetbrains.kotlin.platform.native'
 apply plugin: 'maven-publish'
+
 
 group 'com.synappticlabs.db.sqlite3'
 version '0.1.0'
@@ -28,11 +31,80 @@ sourceSets {
     components.main {
         baseName = "SLKNDB"
         targets = ['ios_arm64', 'ios_x64', 'macos_x64']
-        outputKinds = [KLIBRARY, FRAMEWORK]
-//        outputKinds = [KLIBRARY]
+//        outputKinds = [KLIBRARY, FRAMEWORK]
+        outputKinds = [KLIBRARY]
         dependencies {
             cinterop('sqlite3') {
             }
         }
     }
+}
+
+project.ext.pomConfig = {
+    licenses {
+        license {
+            name "The Apache Software License, Version 2.0"
+            url "http://www.apache.org/licenses/LICENSE-2.0.txt"
+            distribution "repo"
+        }
+    }
+    developers {
+        developer {
+            id "Samus"
+            name "Sam Corder"
+        }
+    }
+
+    scm {
+        url "https://github.com/samus/slkndb"
+    }
+}
+
+publishing {
+    publications {
+        mavenProject(MavenPublication) {
+        }
+    }
+}
+
+
+afterEvaluate {
+    project.publishing.publications.forEach { publication ->
+        println("pub.groupId ${publication.groupId}, artifactId ${publication.artifactId}, publication ${publication}")
+        publication.pom.withXml {
+            def root = asNode()
+            root.appendNode('name', "slkndb")
+            root.appendNode('description', 'Kotlin Native sqlite wrapper')
+            root.appendNode('url', 'https://github.com/samus/slkndb')
+            root.children().last() + pomConfig
+        }
+    }
+}
+
+apply plugin: 'com.jfrog.bintray'
+
+bintray {
+    def keyProps = new Properties()
+    def keyFile = file("keys.properties")
+    keyFile.withInputStream { keyProps.load(it) }
+
+    user = keyProps.getProperty("bintrayUser")
+    key = keyProps.getProperty("bintrayKey")
+    publications = ['mavenProject']
+    publish = false
+    override = true
+    pkg {
+        repo = 'slkndb'
+        name = 'slkndb'
+        userOrg = 'samus'
+        licenses = ['Apache-2.0']
+        vcsUrl = 'https://github.com/samus/slkndb'
+        version {
+            name = project.version
+        }
+    }
+}
+
+bintrayUpload.doFirst {
+    publications = project.publishing.publications
 }
