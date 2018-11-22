@@ -70,7 +70,14 @@ class Database(internal val conn: DbConnection) {
         return ResultSet(stmt)
     }
 
-    fun transaction(type: TransactionType = TransactionType.Deferred(),
+    /**
+     * Create a unit of work in the database that can be committed or rolled back as a single piece.
+     * @param type the type of the transaction to start.  See the sqlite docs for more information.
+     * @param function Code to execute within the transaction.  The function must return a result signifying whether
+     * the work is to be committed or rolled back.
+     * @see https://www.sqlite.org/lang_transaction.html
+     */
+    fun transaction(type: TransactionType = TransactionType.DEFERRED,
                     function: (Transaction.() -> TransactionResult)): SQLiteResult {
         val (begin, transaction) = Transaction.begin(type, this)
 
@@ -83,7 +90,7 @@ class Database(internal val conn: DbConnection) {
                 try {
                     return Transaction.end(function(transaction), this)
                 } catch (ex: Exception) {
-                    return Transaction.end(TransactionResult.Rollback(), this)
+                    return Transaction.end(TransactionResult.ROLLBACK, this)
                 }
             }
         }

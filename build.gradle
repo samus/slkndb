@@ -70,7 +70,7 @@ publishing {
 
 afterEvaluate {
     project.publishing.publications.forEach { publication ->
-        println("pub.groupId ${publication.groupId}, artifactId ${publication.artifactId}, publication ${publication}")
+        //println("pub.groupId ${publication.groupId}, artifactId ${publication.artifactId}, publication ${publication}")
         publication.pom.withXml {
             def root = asNode()
             root.appendNode('name', "slkndb")

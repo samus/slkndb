@@ -8,7 +8,7 @@ class TransactionTests {
     @Test
     fun `Commits a transaction with no modifications`() {
         db.transaction() {
-            return@transaction TransactionResult.Commit()
+            return@transaction TransactionResult.COMMIT
         }
     }
 
@@ -18,7 +18,7 @@ class TransactionTests {
             execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
                 parameters.bind(hashMapOf("bar" to "bare", "baz" to "bazf", "num" to 5))
             }
-            return@transaction TransactionResult.Commit()
+            return@transaction TransactionResult.COMMIT
         }
         val resultSet = db.query("select * from foo where num = 5")
         assertTrue(resultSet.next())
@@ -31,7 +31,7 @@ class TransactionTests {
             execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
                 parameters.bind(hashMapOf("bar" to "bare", "baz" to "bazf", "num" to 5))
             }
-            return@transaction TransactionResult.Rollback()
+            return@transaction TransactionResult.ROLLBACK
         }
         val resultSet = db.query("select * from foo where num = 5")
         assertFalse(resultSet.next())
@@ -54,7 +54,7 @@ class TransactionTests {
             } catch (ex: Exception) {
                 fail("Test failed with exception: $ex")
             }
-            return@transaction TransactionResult.Commit()
+            return@transaction TransactionResult.COMMIT
         }
         val resultSet = db.query("select * from foo where num = 5")
         assertTrue(resultSet.next())
@@ -80,12 +80,12 @@ class TransactionTests {
                     execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
                         parameters.bind(hashMapOf("bar" to "barf", "baz" to "bazg", "num" to 7))
                     }
-                    return@nest TransactionResult.Commit()
+                    return@nest TransactionResult.COMMIT
                 }
             } catch (ex: Exception) {
                 fail("Test failed with exception: $ex")
             }
-            return@transaction TransactionResult.Commit()
+            return@transaction TransactionResult.COMMIT
         }
         val resultSet = db.query("select * from foo where num >= 5")
         var rowCount = 0
@@ -114,12 +114,12 @@ class TransactionTests {
                     execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
                         parameters.bind(hashMapOf("bar" to "barf", "baz" to "bazg", "num" to 7))
                     }
-                    return@nest TransactionResult.Rollback()
+                    return@nest TransactionResult.ROLLBACK
                 }
             } catch (ex: Exception) {
                 fail("Test failed with exception: $ex")
             }
-            return@transaction TransactionResult.Commit()
+            return@transaction TransactionResult.COMMIT
         }
         val resultSet = db.query("select * from foo where num >= 5")
         var rowCount = 0
@@ -149,14 +149,14 @@ class TransactionTests {
                         execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
                             parameters.bind(hashMapOf("bar" to "barf", "baz" to "bazg", "num" to 7))
                         }
-                        return@nest TransactionResult.Rollback()
+                        return@nest TransactionResult.ROLLBACK
                     }
-                    return@nest TransactionResult.Commit()
+                    return@nest TransactionResult.COMMIT
                 }
             } catch (ex: Exception) {
                 fail("Test failed with exception: $ex")
             }
-            return@transaction TransactionResult.Commit()
+            return@transaction TransactionResult.COMMIT
         }
         val resultSet = db.query("select * from foo where num >= 5")
         var rowCount = 0
