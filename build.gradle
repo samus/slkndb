@@ -19,6 +19,10 @@ plugins {
 
 
 apply plugin: 'org.jetbrains.kotlin.platform.native'
+apply plugin: 'maven-publish'
+
+group 'com.synappticlabs.db.sqlite3'
+version '0.1.0'
 
 sourceSets {
     components.main {
