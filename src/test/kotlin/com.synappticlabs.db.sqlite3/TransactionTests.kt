@@ -149,7 +149,7 @@ class TransactionTests {
                         execute("insert into foo(bar, baz, num) values (:bar,:baz,:num);") {
                             parameters.bind(hashMapOf("bar" to "barf", "baz" to "bazg", "num" to 7))
                         }
-                        return@nest TransactionResult.ROLLBACK
+                        TransactionResult.ROLLBACK
                     }
                     return@nest TransactionResult.COMMIT
                 }
