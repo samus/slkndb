@@ -8,9 +8,14 @@ class ResultSetTests {
     var resultSet: ResultSet? = null
 
     @Test
+    fun `Will not die on a bad sql statement`() {
+        val resultSet = getResultSet("select num from foo where num = null") //Should be is instead of =
+        assertFalse(resultSet.next())
+    }
+
+    @Test
     fun `Reads column names from a splat query`() {
-        val resultSet = db.query("select * from foo")
-        this.resultSet = resultSet
+        val resultSet = getResultSet("select * from foo")
 
         assertEquals(4, resultSet.columnCount)
         assertEquals("bar", resultSet.nameOf(1))

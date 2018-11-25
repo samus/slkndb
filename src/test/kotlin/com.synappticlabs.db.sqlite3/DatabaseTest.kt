@@ -15,6 +15,29 @@ class DatabaseTests {
         assertTrue(db.close())
         assertFalse(db.opened)
     }
+
+
+    @Test
+    fun `Can open a read only database`() {
+        val db = Database.open("readOnly.db")
+        assertTrue(db.opened, "Could not create db for read only test.")
+        assertTrue(db.close())
+        val ro = Database.open("readOnly", readOnly = true)
+        assertTrue(ro.opened)
+    }
+
+    @Test
+    fun `Opens a database once in rw mode and once in r mode`() {
+        val name = "DatabaseTests.db"
+        try {
+            val dbrw = Database.open(name)
+            assertTrue(dbrw.opened, "Unable to open rw database")
+            val dbro = Database.open(name, readOnly = true)
+            assertTrue(dbro.opened, "Unable to open ro database")
+        } catch (ex: Exception) {
+            fail(ex.message)
+        }
+    }
 }
 
 class DatabaseExecutionTests {
