@@ -4,7 +4,7 @@ import kotlinx.cinterop.*
 import sqlite3.*
 
 
-typealias DbConnection = CPointer<sqlite3>?
+internal typealias DbConnection = CPointer<sqlite3>?
 
 class Database(internal val conn: DbConnection) {
     /**
@@ -18,10 +18,14 @@ class Database(internal val conn: DbConnection) {
      */
     fun goodConnection(): Boolean {
         if (opened == false) { return false }
-
-        TODO("Execute a query to determine if the connection is good.")
-
-        return true
+        try {
+            val rs = this.query("select name from sqlite_master where type='table'")
+            val result = rs.next()
+            rs.close()
+            return result
+        } catch (ex: Exception) {
+            return false
+        }
     }
 
     /**
@@ -174,7 +178,7 @@ class Database(internal val conn: DbConnection) {
                 val dbPtr = alloc<CPointerVar<sqlite3>>()
                 var flags = SQLITE_OPEN_CREATE
                 if (readOnly) {
-                    flags = flags or SQLITE_OPEN_READONLY
+                    flags = SQLITE_OPEN_READONLY
                 } else {
                     flags = flags or SQLITE_OPEN_READWRITE
                 }

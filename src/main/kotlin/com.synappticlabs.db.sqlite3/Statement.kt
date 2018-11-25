@@ -3,7 +3,7 @@ package com.synappticlabs.db.sqlite3
 import kotlinx.cinterop.*
 import sqlite3.*
 
-typealias StatementPointer = CPointer<sqlite3_stmt>
+internal typealias StatementPointer = CPointer<sqlite3_stmt>
 
 class Statement(internal val stmt: StatementPointer, private val conn: DbConnection) {
     val parameters = ParameterBinder(stmt)
